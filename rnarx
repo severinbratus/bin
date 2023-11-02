@@ -1,0 +1,57 @@
+#!/usr/bin/env python3
+
+from sys import argv
+import os
+import re
+import pytest
+
+import arxiv
+
+opt_debug = None
+get_last_name = lambda author: author.name.split()[-1]
+
+
+def get_format_new(old):
+    id = old.replace('.pdf', '')
+    paper = next(arxiv.Client().results(arxiv.Search(id_list=[id])))
+
+    title = paper.title.replace(':', '_')
+
+    if len(paper.authors) == 2:
+        auth = ' '.join([get_last_name(paper.authors[i]) for i in range(2)])
+    else:
+        auth = get_last_name(paper.authors[0])
+
+    year = paper.published.year
+
+    format_final = f"{auth} {year} {title}.pdf"
+    return format_final
+
+
+# usage:
+# rnarx file0..fileN [options]
+# example usage:
+# find Documents/ -name ????.?????.pdf -print0 | xargs -0 rnarx -v
+
+
+def rename_path(path_old, options):
+    opt_debug = "-d" in options
+    opt_verbose = "-v" in options
+
+    dir_old = os.path.dirname(path_old)
+    base_old = os.path.basename(path_old)
+    base_new = get_format_new(base_old)
+    path_new = os.path.join(dir_old, base_new)
+
+    if opt_debug or opt_verbose:
+        print(path_old, '==>', base_new)
+    if opt_verbose:
+        os.rename(path_old, path_new)
+
+
+if __name__ == '__main__':
+    options = [arg for arg in argv[1:] if arg.startswith('-')]
+    paths = [arg for arg in argv[1:] if not arg.startswith('-')]
+
+    for path in paths:
+        rename_path(path, options)
